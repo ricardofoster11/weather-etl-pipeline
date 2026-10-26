@@ -4,26 +4,24 @@ from pathlib import Path
 
 import requests
 
-from config.logger import setup_logging
-
-setup_logging()
 logger = logging.getLogger(__name__)
 
-# api_key=""
-# url = "https://api.openweathermap.org/data/2.5/weather"
 
-# params = {
-#     "q": "Sao Paulo,BR",
-#     "units": "metric",
-#     "appid": api_key
-# }
-
-
-def extract_weather_data(url: str) -> dict | list:
+def extract_weather_data(
+        api_url: str,
+        api_key: str,
+        api_city: str
+) -> dict | list:
     logger.info("Iniciando extração dos dados meteorológicos.")
 
+    params = {
+        "q": api_city,
+        "units": "metric",
+        "appid": api_key
+    }
+
     try:
-        response = requests.get(url, params=params, timeout=30)
+        response = requests.get(api_url, params=params, timeout=30)
         response.raise_for_status()
 
         logger.info(

@@ -1,4 +1,37 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.1.7
+  user: "${AIRFLOW_UID:-50000}:0"
+
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__PARALLELISM: "2"
+
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY}
+
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: airflow:admin
+
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./src:/opt/airflow/src
+    - ./config:/opt/airflow/config
+    - ./data:/opt/airflow/data
+    - ./.env:/opt/airflow/.env:ro
+
+  depends_on:
+    airflow-postgres:
+      condition: service_healthy
+
+
 services:
+
+  # PostgreSQL do projeto ETL
   postgres:
     image: postgres:16
     container_name: weather-etl-pipeline-postgres
@@ -15,5 +48,59 @@ services:
     volumes:
       - weather_postgres_data:/var/lib/postgresql/data
 
+
+  # PostgreSQL exclusivo para metadados do Airflow
+  airflow-postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+
+
+  # Inicialização do Airflow
+  airflow-init:
+    <<: *airflow-common
+    command: db migrate
+
+    restart: "no"
+
+
+  # Interface web e API
+  airflow-api-server:
+    <<: *airflow-common
+    command: api-server
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+
+  # Agendamento e execução das tarefas
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+
+
+  # Processamento das DAGs
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    restart: unless-stopped
+
+
 volumes:
   weather_postgres_data:
+  airflow_postgres_data:
