@@ -4,9 +4,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from config.logger import setup_logging
-
-setup_logging()
 logger = logging.getLogger(__name__)
 
 path_name = Path(__file__).resolve().parent.parent / "data" / "weather_data.json"
