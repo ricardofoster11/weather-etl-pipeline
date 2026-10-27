@@ -28,7 +28,7 @@ api_city = os.getenv("API_CITY")
 
 
 @dag(
-    dag_id="weater_pipeline",
+    dag_id="weather_pipeline",
     description="Pipeline ETL - Clima SP",
     default_args={
         "owner": "airflow",
